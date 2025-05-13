@@ -1,43 +1,40 @@
 import React, { useEffect, useState } from 'react';
-import { getAllMostWanted } from '../api/fbi';
+import { getMostWanted } from '../api/fbi';
 import { Link } from 'react-router-dom';
 
-const ITEMS_PER_PAGE = 12;
-
 const Home = () => {
-  const [allFugitives, setAllFugitives] = useState([]);
+  const [wantedList, setWantedList] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchAll = async () => {
+    const fetchData = async () => {
       setIsLoading(true);
-      const data = await getAllMostWanted();
-      setAllFugitives(data);
-      setFiltered(data);
+      const data = await getMostWanted(page);
+      setWantedList(data.items || []);
+      setFiltered(data.items || []);
+      setTotal(data.total || 0);
       setIsLoading(false);
     };
-
-    fetchAll();
-  }, []);
+    fetchData();
+  }, [page]);
 
   useEffect(() => {
     const term = searchTerm.toLowerCase();
-    const results = allFugitives.filter(person =>
+    const results = wantedList.filter(person =>
       person.title.toLowerCase().includes(term) ||
       (person.description && person.description.toLowerCase().includes(term))
     );
     setFiltered(results);
-    setPage(1); // reset to first page when search changes
-  }, [searchTerm, allFugitives]);
+  }, [searchTerm, wantedList]);
 
-  const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-
-  const handleNext = () => setPage(prev => Math.min(prev + 1, totalPages));
+  const handleNext = () => setPage(prev => prev + 1);
   const handlePrev = () => setPage(prev => Math.max(prev - 1, 1));
+
+  const totalPages = Math.ceil(total / 12);
 
   return (
     <div className="min-h-screen p-6 bg-gray-100">
@@ -58,10 +55,10 @@ const Home = () => {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {paginated.length === 0 ? (
+            {filtered.length === 0 ? (
               <div className="text-center text-gray-600 col-span-full">No results found.</div>
             ) : (
-              paginated.map(person => (
+              filtered.map(person => (
                 <Link
                   key={person.uid}
                   to={`/details/${person.uid}`}
@@ -80,6 +77,7 @@ const Home = () => {
             )}
           </div>
 
+          {/* Pagination Controls */}
           <div className="flex justify-center items-center gap-4 mt-10">
             <button
               onClick={handlePrev}
